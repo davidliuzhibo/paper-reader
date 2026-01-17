@@ -112,48 +112,92 @@ SYSTEM_PROMPT = """你是一个专门用于阅读学术论文并生成易懂解�
 
 
 # ============================================================
-# 图片生成函数（阿里通义万相）
+# 图片生成函数（阿里通义万相 - 使用 DashScope 原生 API）
 # ============================================================
 async def generate_image_dashscope(prompt: str, image_index: int) -> str | None:
-    """调用阿里通义万相 API 生成图片"""
+    """调用阿里通义万相 API 生成图片（DashScope 原生格式）"""
     if not DASHSCOPE_API_KEY:
         print(f"[WARN] DASHSCOPE_API_KEY not set, skipping image {image_index}")
         return None
 
+    # DashScope 原生 API 端点
+    api_url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis"
+
     print(f"[INFO] Generating image {image_index} with model: {DASHSCOPE_MODEL}")
-    print(f"[INFO] API endpoint: {DASHSCOPE_BASE_URL}/images/generations")
+    print(f"[INFO] API endpoint: {api_url}")
 
     try:
-        async with httpx.AsyncClient(timeout=120) as client:
-            # 通义万相使用 OpenAI 兼容格式
+        async with httpx.AsyncClient(timeout=180) as client:
+            # 第一步：提交任务（异步模式）
             response = await client.post(
-                f"{DASHSCOPE_BASE_URL}/images/generations",
+                api_url,
                 headers={
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {DASHSCOPE_API_KEY}"
+                    "Authorization": f"Bearer {DASHSCOPE_API_KEY}",
+                    "X-DashScope-Async": "enable"  # 异步模式
                 },
                 json={
                     "model": DASHSCOPE_MODEL,
-                    "prompt": prompt,
-                    "n": 1,
-                    "size": "1024*1024"  # 通义万相使用 * 而不是 x
+                    "input": {
+                        "prompt": prompt
+                    },
+                    "parameters": {
+                        "size": "1024*1024",
+                        "n": 1
+                    }
                 }
             )
 
             print(f"[INFO] DashScope API response status: {response.status_code}")
 
-            if response.status_code == 200:
-                result = response.json()
-                print(f"[DEBUG] API response: {json.dumps(result, ensure_ascii=False)[:500]}")
+            if response.status_code != 200:
+                print(f"[WARN] DashScope API returned status {response.status_code}")
+                print(f"[WARN] Response: {response.text[:500]}")
+                return None
 
-                if "data" in result and len(result["data"]) > 0:
-                    image_data = result["data"][0]
+            result = response.json()
+            print(f"[DEBUG] Task submission response: {json.dumps(result, ensure_ascii=False)[:500]}")
 
-                    # 检查返回的是 URL 还是 base64
-                    if "url" in image_data:
-                        # 下载图片并保存
-                        print(f"[INFO] Downloading image from URL...")
-                        img_response = await client.get(image_data["url"], timeout=60)
+            # 获取任务 ID
+            task_id = result.get("output", {}).get("task_id")
+            if not task_id:
+                print(f"[WARN] No task_id in response")
+                return None
+
+            print(f"[INFO] Task submitted, task_id: {task_id}")
+
+            # 第二步：轮询任务状态
+            task_url = f"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}"
+            max_attempts = 60  # 最多等待 60 次
+
+            for attempt in range(max_attempts):
+                await anyio.sleep(2)  # 每 2 秒检查一次
+
+                task_response = await client.get(
+                    task_url,
+                    headers={
+                        "Authorization": f"Bearer {DASHSCOPE_API_KEY}"
+                    }
+                )
+
+                if task_response.status_code != 200:
+                    print(f"[WARN] Task query failed: {task_response.status_code}")
+                    continue
+
+                task_result = task_response.json()
+                task_status = task_result.get("output", {}).get("task_status")
+
+                print(f"[INFO] Task status ({attempt + 1}/{max_attempts}): {task_status}")
+
+                if task_status == "SUCCEEDED":
+                    # 获取图片 URL
+                    results = task_result.get("output", {}).get("results", [])
+                    if results and "url" in results[0]:
+                        image_url = results[0]["url"]
+                        print(f"[INFO] Image URL: {image_url[:100]}...")
+
+                        # 下载图片
+                        img_response = await client.get(image_url, timeout=60)
                         if img_response.status_code == 200:
                             image_path = OUTPUT_DIR / f"image_{image_index}.png"
                             with open(image_path, "wb") as f:
@@ -162,21 +206,20 @@ async def generate_image_dashscope(prompt: str, image_index: int) -> str | None:
                             return str(image_path)
                         else:
                             print(f"[WARN] Failed to download image: {img_response.status_code}")
-                    elif "b64_json" in image_data:
-                        # 直接保存 base64 数据
-                        image_bytes = base64.b64decode(image_data["b64_json"])
-                        image_path = OUTPUT_DIR / f"image_{image_index}.png"
-                        with open(image_path, "wb") as f:
-                            f.write(image_bytes)
-                        print(f"[INFO] Image {image_index} saved to {image_path}")
-                        return str(image_path)
+                    return None
 
-                print(f"[WARN] Unexpected API response format for image {image_index}")
-                return None
-            else:
-                print(f"[WARN] DashScope API returned status {response.status_code}")
-                print(f"[WARN] Response: {response.text[:500]}")
-                return None
+                elif task_status == "FAILED":
+                    error_msg = task_result.get("output", {}).get("message", "Unknown error")
+                    print(f"[ERROR] Task failed: {error_msg}")
+                    return None
+
+                elif task_status in ["PENDING", "RUNNING"]:
+                    continue
+                else:
+                    print(f"[WARN] Unknown task status: {task_status}")
+
+            print(f"[WARN] Task timed out after {max_attempts} attempts")
+            return None
 
     except Exception as e:
         print(f"[ERROR] Image generation failed: {e}")
