@@ -11,7 +11,7 @@
 | 需求 | GitHub Actions 支持情况 |
 |------|-------------------------|
 | Python 运行环境 | ✅ 原生支持 Python 3.11 |
-| Claude Agent SDK | ✅ 可通过 pip 安装 |
+| 第三方 API 调用 | ✅ 通过 yunwu.ai 调用 Claude |
 | PDF 文件处理 | ✅ PyPDF2 等库支持 |
 | 外部 API 调用 | ✅ 支持 HTTPS 出站请求 |
 | 定时触发 | ✅ cron 表达式支持 |
@@ -40,8 +40,8 @@
 │   └── 推送 (push): papers/*.pdf 有新文件时                    │
 │                                                              │
 │   ┌─────────────┐    ┌──────────────────┐    ┌────────────┐ │
-│   │  Download   │ -> │  Claude Agent    │ -> │   Save     │ │
-│   │  PDF File   │    │  SDK Processing  │    │   Output   │ │
+│   │  Download   │ -> │  yunwu.ai API    │ -> │   Save     │ │
+│   │  PDF File   │    │  (Claude Opus)   │    │   Output   │ │
 │   └─────────────┘    └──────────────────┘    └────────────┘ │
 │                              │                              │
 │                              v                              │
@@ -57,21 +57,21 @@
 
 ## 需要配置的 GitHub Secrets
 
-从 `skills/lunwen/SKILL.md` 中提取的敏感信息：
+| Secret 名称 | 用途 | 值 |
+|------------|------|-----|
+| `YUNWU_API_KEY` | yunwu.ai Claude API 认证 | `sk-GFAAGFNIHon8fFSLYvNZ8q4I1rE4NdkPYc5CNmP0LwTOmmN0` |
+| `YUNWU_IMAGE_API_KEY` | 图片生成 API 认证（可选） | `sk-vnGbZHjawACCghqzVzekqy8OPEa42UPnmL2rMKTmAbvZPywV` |
 
-| Secret 名称 | 来源 | 用途 |
-|------------|------|------|
-| `ANTHROPIC_API_KEY` | [Anthropic Console](https://console.anthropic.com/) | Claude Agent SDK 认证 |
-| `YUNWU_API_KEY` | SKILL.md 中的 API Key | 图片生成 API 认证 |
+### API 配置信息
 
-### 当前 SKILL.md 中的 API 信息
+**Claude API (通过 yunwu.ai)**:
+- 端点: `https://yunwu.ai/v1/messages`
+- 模型: `claude-opus-4-5-20251101`
 
-```
-端点: https://yunwu.ai/v1beta/models/gemini-3-pro-image-preview:generateContent
-API密钥: sk-vnGbZHjawACCghqzVzekqy8OPEa42UPnmL2rMKTmAbvZPywV
-```
+**图片生成 API**:
+- 端点: `https://yunwu.ai/v1beta/models/gemini-3-pro-image-preview:generateContent`
 
-> ⚠️ **安全提醒**: 上述密钥已在 SKILL.md 中公开，建议尽快更换并仅存储在 GitHub Secrets 中。
+> 💡 如果两个 API 使用相同的密钥，只需配置 `YUNWU_API_KEY` 即可。
 
 ---
 
@@ -100,23 +100,8 @@ paper-reader/
 ### 步骤 1: 推送代码到 GitHub
 
 ```bash
-# 添加新文件
-git add .github/workflows/paper-reader.yml
-git add scripts/cloud_paper_reader.py
-git add papers/.gitkeep
-git add outputs/.gitkeep
-git add GITHUB_ACTIONS_DEPLOYMENT.md
-
-# 提交
-git commit -m "Add GitHub Actions workflow for paper reader
-
-- Add paper-reader.yml workflow with schedule, manual, and push triggers
-- Add cloud_paper_reader.py script using Claude Agent SDK
-- Add papers/ and outputs/ directories
-
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
-
-# 推送
+git add -A
+git commit -m "Update for yunwu.ai third-party API"
 git push origin master
 ```
 
@@ -128,17 +113,15 @@ git push origin master
 4. 点击 **New repository secret**
 5. 添加以下 Secrets:
 
-#### Secret 1: ANTHROPIC_API_KEY
-
-- **Name**: `ANTHROPIC_API_KEY`
-- **Secret**: 你的 Anthropic API 密钥
-- 获取地址: https://console.anthropic.com/settings/keys
-
-#### Secret 2: YUNWU_API_KEY
+#### Secret 1: YUNWU_API_KEY (必须)
 
 - **Name**: `YUNWU_API_KEY`
+- **Secret**: `sk-GFAAGFNIHon8fFSLYvNZ8q4I1rE4NdkPYc5CNmP0LwTOmmN0`
+
+#### Secret 2: YUNWU_IMAGE_API_KEY (可选，用于图片生成)
+
+- **Name**: `YUNWU_IMAGE_API_KEY`
 - **Secret**: `sk-vnGbZHjawACCghqzVzekqy8OPEa42UPnmL2rMKTmAbvZPywV`
-- 注意: 这是 SKILL.md 中的密钥，建议更换为新密钥
 
 ### 步骤 3: 验证 Workflow
 
@@ -189,21 +172,21 @@ git push
 
 ## 故障排除
 
-### 问题: ANTHROPIC_API_KEY 无效
+### 问题: YUNWU_API_KEY 无效
 
 ```
-[ERROR] ANTHROPIC_API_KEY environment variable is not set
+[ERROR] YUNWU_API_KEY environment variable is not set
 ```
 
 **解决**: 检查 Secrets 是否正确配置，名称是否拼写正确。
 
-### 问题: 图片生成失败
+### 问题: API 返回 401
 
 ```
-[WARN] Image API returned status 401
+[ERROR] API returned status 401
 ```
 
-**解决**: 检查 YUNWU_API_KEY 是否正确，或 API 额度是否用尽。
+**解决**: 检查 API Key 是否正确，或额度是否用尽。
 
 ### 问题: PDF 提取失败
 
@@ -220,13 +203,12 @@ git push
 | 资源 | 免费额度 | 预计消耗 |
 |------|----------|----------|
 | GitHub Actions | 2000分钟/月 | ~5分钟/次 |
-| Claude API | 按量付费 | ~$0.05-0.15/篇 |
-| Yunwu 图片 API | 取决于套餐 | ~2-3张/篇 |
+| yunwu.ai Claude API | 按量付费 | 取决于套餐 |
+| yunwu.ai 图片 API | 按量付费 | ~2-3张/篇 |
 
 ---
 
 ## 参考资料
 
-- [Claude Agent SDK Python](https://github.com/anthropics/claude-agent-sdk-python)
-- [Agent SDK 文档](https://docs.anthropic.com/en/docs/claude-code/sdk)
+- [yunwu.ai API 文档](https://yunwu.ai)
 - [GitHub Actions 文档](https://docs.github.com/en/actions)

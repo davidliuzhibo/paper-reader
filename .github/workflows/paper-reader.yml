@@ -44,7 +44,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install claude-agent-sdk anyio httpx PyPDF2
+          pip install anyio httpx PyPDF2
 
       - name: Create papers directory if not exists
         run: mkdir -p papers outputs
@@ -73,11 +73,11 @@ jobs:
             echo "PAPER_PATH=$LATEST_PAPER" >> $GITHUB_ENV
           fi
 
-      - name: Run Paper Reader with Claude Agent SDK
+      - name: Run Paper Reader via yunwu.ai
         if: ${{ env.SKIP_PROCESSING != 'true' }}
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           YUNWU_API_KEY: ${{ secrets.YUNWU_API_KEY }}
+          YUNWU_IMAGE_API_KEY: ${{ secrets.YUNWU_IMAGE_API_KEY }}
           PAPER_PATH: ${{ env.PAPER_PATH }}
         run: |
           python scripts/cloud_paper_reader.py
@@ -98,7 +98,7 @@ jobs:
           git add outputs/
           git diff --staged --quiet || git commit -m "Add paper explanation - $(date +%Y%m%d-%H%M%S)
 
-          Co-Authored-By: Claude Agent SDK <noreply@anthropic.com>"
+          Co-Authored-By: yunwu.ai Claude API <noreply@yunwu.ai>"
           git push
 
       - name: Summary
