@@ -2,18 +2,21 @@
 # -*- coding: utf-8 -*-
 """
 云端论文解读执行脚本
-通过 yunwu.ai 第三方 API 调用 Claude 模型
+使用 Claude Agent SDK 调用 Claude 模型（通过 yunwu.ai 代理）
+使用阿里通义万相 2.6 生成配图
 
-环境变量:
-  - YUNWU_API_KEY: yunwu.ai API 密钥（用于 Claude 和图片生成）
-  - YUNWU_IMAGE_API_KEY: 图片生成 API 密钥（可选，如果与 Claude API 不同）
+环境变量（GitHub Secrets 配置）:
+  - ANTHROPIC_API_KEY: yunwu.ai API 密钥
+  - ANTHROPIC_BASE_URL: yunwu.ai API 端点
+  - ANTHROPIC_MODEL: Claude 模型名称
+  - DASHSCOPE_API_KEY: 阿里通义万相 API 密钥
   - PAPER_PATH: 论文文件路径
 """
 
 import os
 import sys
 import json
-import asyncio
+import base64
 from datetime import datetime
 from pathlib import Path
 
@@ -22,17 +25,15 @@ import httpx
 
 
 # ============================================================
-# 配置
+# 配置（从环境变量读取）
 # ============================================================
-# Claude API 配置（通过 yunwu.ai 代理）
-YUNWU_API_KEY = os.environ.get("YUNWU_API_KEY")
-YUNWU_API_BASE = "https://yunwu.ai/v1/messages"
-CLAUDE_MODEL = "claude-opus-4-5-20251101"
+# Claude API 配置（通过 yunwu.ai 代理，由 Agent SDK 自动读取）
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-5-20251101")
 
-# 图片生成 API 配置
-YUNWU_IMAGE_API_KEY = os.environ.get("YUNWU_IMAGE_API_KEY", os.environ.get("YUNWU_API_KEY"))
-IMAGE_API_ENDPOINT = "https://yunwu.ai/v1beta/models/gemini-3-pro-image-preview:generateContent"
-IMAGE_API_TIMEOUT = 30
+# 阿里通义万相配置
+DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY")
+DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+DASHSCOPE_MODEL = "wanx2.1-t2i-turbo"  # 通义万相文生图模型
 
 # 论文路径
 PAPER_PATH = os.environ.get("PAPER_PATH", "")
@@ -108,57 +109,59 @@ SYSTEM_PROMPT = """你是一个专门用于阅读学术论文并生成易懂解�
 
 
 # ============================================================
-# 图片生成函数
+# 图片生成函数（阿里通义万相）
 # ============================================================
-async def generate_image(prompt: str, image_index: int) -> str | None:
-    """调用 Yunwu API 生成图片"""
-    if not YUNWU_IMAGE_API_KEY:
-        print(f"[WARN] YUNWU_IMAGE_API_KEY not set, skipping image {image_index}")
+async def generate_image_dashscope(prompt: str, image_index: int) -> str | None:
+    """调用阿里通义万相 API 生成图片"""
+    if not DASHSCOPE_API_KEY:
+        print(f"[WARN] DASHSCOPE_API_KEY not set, skipping image {image_index}")
         return None
 
     try:
-        async with httpx.AsyncClient(timeout=IMAGE_API_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=60) as client:
+            # 通义万相使用 OpenAI 兼容格式
             response = await client.post(
-                IMAGE_API_ENDPOINT,
+                f"{DASHSCOPE_BASE_URL}/images/generations",
                 headers={
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {YUNWU_IMAGE_API_KEY}"
+                    "Authorization": f"Bearer {DASHSCOPE_API_KEY}"
                 },
                 json={
-                    "contents": [{
-                        "parts": [{
-                            "text": prompt
-                        }]
-                    }],
-                    "generationConfig": {
-                        "temperature": 0.7,
-                        "maxOutputTokens": 2048
-                    }
+                    "model": DASHSCOPE_MODEL,
+                    "prompt": prompt,
+                    "n": 1,
+                    "size": "1024x1024"
                 }
             )
 
             if response.status_code == 200:
                 result = response.json()
-                # 解析返回的图片 URL（根据实际 API 响应格式调整）
-                if "candidates" in result:
-                    candidate = result["candidates"][0]
-                    if "content" in candidate and "parts" in candidate["content"]:
-                        for part in candidate["content"]["parts"]:
-                            if "inlineData" in part:
-                                # 如果返回 base64 数据，保存为文件
-                                import base64
-                                image_data = base64.b64decode(part["inlineData"]["data"])
-                                image_path = OUTPUT_DIR / f"image_{image_index}.png"
-                                with open(image_path, "wb") as f:
-                                    f.write(image_data)
-                                return str(image_path)
-                            elif "text" in part:
-                                # 如果返回 URL
-                                return part.get("fileData", {}).get("fileUri", "")
+                if "data" in result and len(result["data"]) > 0:
+                    image_data = result["data"][0]
+
+                    # 检查返回的是 URL 还是 base64
+                    if "url" in image_data:
+                        # 下载图片并保存
+                        img_response = await client.get(image_data["url"])
+                        if img_response.status_code == 200:
+                            image_path = OUTPUT_DIR / f"image_{image_index}.png"
+                            with open(image_path, "wb") as f:
+                                f.write(img_response.content)
+                            print(f"[INFO] Image {image_index} saved to {image_path}")
+                            return str(image_path)
+                    elif "b64_json" in image_data:
+                        # 直接保存 base64 数据
+                        image_bytes = base64.b64decode(image_data["b64_json"])
+                        image_path = OUTPUT_DIR / f"image_{image_index}.png"
+                        with open(image_path, "wb") as f:
+                            f.write(image_bytes)
+                        print(f"[INFO] Image {image_index} saved to {image_path}")
+                        return str(image_path)
+
                 print(f"[WARN] Unexpected API response format for image {image_index}")
                 return None
             else:
-                print(f"[WARN] Image API returned status {response.status_code}")
+                print(f"[WARN] DashScope API returned status {response.status_code}: {response.text}")
                 return None
 
     except Exception as e:
@@ -192,15 +195,18 @@ def extract_pdf_text(pdf_path: str) -> str:
 
 
 # ============================================================
-# 主执行函数（使用 yunwu.ai 第三方 API）
+# 主执行函数（使用 Claude Agent SDK）
 # ============================================================
 async def run_paper_reader():
-    """通过 yunwu.ai 调用 Claude API 执行论文解读"""
+    """使用 Claude Agent SDK 执行论文解读"""
 
     # 验证环境变量
-    if not YUNWU_API_KEY:
-        print("[ERROR] YUNWU_API_KEY environment variable is not set")
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        print("[ERROR] ANTHROPIC_API_KEY environment variable is not set")
         sys.exit(1)
+
+    if not os.environ.get("ANTHROPIC_BASE_URL"):
+        print("[WARN] ANTHROPIC_BASE_URL not set, will use default Anthropic API")
 
     if not PAPER_PATH or not Path(PAPER_PATH).exists():
         print(f"[ERROR] Paper file not found: {PAPER_PATH}")
@@ -235,25 +241,62 @@ async def run_paper_reader():
 
 请生成完整的 Markdown 格式解读文章，包含所有章节。"""
 
-    # 调用 yunwu.ai Claude API
-    print(f"[INFO] Calling Claude API via yunwu.ai (model: {CLAUDE_MODEL})...")
-    explanation = await call_yunwu_claude_api(user_prompt)
+    # 使用 Claude Agent SDK
+    print(f"[INFO] Calling Claude Agent SDK (model: {ANTHROPIC_MODEL})...")
+    print(f"[INFO] Base URL: {os.environ.get('ANTHROPIC_BASE_URL', 'default')}")
+
+    try:
+        from claude_agent_sdk import query
+
+        full_response = []
+        async for message in query(
+            prompt=user_prompt,
+            system=SYSTEM_PROMPT,
+            model=ANTHROPIC_MODEL,
+            max_tokens=8000
+        ):
+            # 处理不同类型的消息
+            if hasattr(message, 'content'):
+                content = message.content
+                if isinstance(content, list):
+                    for block in content:
+                        if hasattr(block, 'text'):
+                            full_response.append(block.text)
+                else:
+                    full_response.append(str(content))
+            elif hasattr(message, 'text'):
+                full_response.append(message.text)
+            elif hasattr(message, 'result'):
+                full_response.append(str(message.result))
+
+        explanation = "\n".join(full_response)
+
+        if not explanation or len(explanation) < 100:
+            print("[WARN] Agent SDK returned empty/short response, trying direct API...")
+            explanation = await call_api_direct(user_prompt)
+
+    except ImportError as e:
+        print(f"[WARN] Claude Agent SDK not available ({e}), using direct API...")
+        explanation = await call_api_direct(user_prompt)
+    except Exception as e:
+        print(f"[WARN] Agent SDK error ({e}), falling back to direct API...")
+        explanation = await call_api_direct(user_prompt)
 
     # 计算处理时间
     processing_time = (datetime.now() - start_time).total_seconds()
 
-    # 生成配图（尝试）
+    # 生成配图（使用通义万相）
     image_status = "未生成"
-    if YUNWU_IMAGE_API_KEY:
-        print("[INFO] Generating images...")
+    if DASHSCOPE_API_KEY:
+        print("[INFO] Generating images with DashScope (通义万相)...")
         image_prompts = [
-            "创建一张教育性插图，展示这篇论文的核心概念。用简洁的图形和标注说明关键机制。风格：现代、清晰、适合科普文章。",
-            "创建一张信息图，总结论文的主要发现。包含3-5个要点，每个要点用图标和简短文字说明。风格：现代信息图表。"
+            "学术论文核心概念可视化插图，现代简洁的教育风格，清晰的图形和标注，蓝色科技感配色",
+            "学术研究成果信息图，包含3-5个要点的总结图表，现代信息图表风格，专业商务感"
         ]
 
         generated_images = []
         for i, prompt in enumerate(image_prompts):
-            img_path = await generate_image(prompt, i + 1)
+            img_path = await generate_image_dashscope(prompt, i + 1)
             if img_path:
                 generated_images.append(img_path)
 
@@ -261,6 +304,8 @@ async def run_paper_reader():
             image_status = f"成功 ({len(generated_images)}张)"
         else:
             image_status = "失败（API 错误）"
+    else:
+        print("[INFO] DASHSCOPE_API_KEY not set, skipping image generation")
 
     # 添加元数据
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -272,12 +317,12 @@ async def run_paper_reader():
 📄 论文文件: `{PAPER_PATH}`
 ⏱️ 处理时长: {processing_time:.1f}秒
 🖼️ 配图生成: {image_status}
-🤖 生成模型: {CLAUDE_MODEL} (via yunwu.ai)
+🤖 生成模型: {ANTHROPIC_MODEL} (via Claude Agent SDK)
 📅 生成时间: {datetime.now().strftime("%Y年%m月%d日 %H:%M:%S")}
 
 ---
 
-*本解读由 GitHub Actions + yunwu.ai Claude API 自动生成*
+*本解读由 GitHub Actions + Claude Agent SDK + 通义万相 自动生成*
 """
 
     final_output = explanation + metadata
@@ -294,19 +339,26 @@ async def run_paper_reader():
     return output_file
 
 
-async def call_yunwu_claude_api(prompt: str) -> str:
-    """通过 yunwu.ai 调用 Claude API"""
+async def call_api_direct(prompt: str) -> str:
+    """直接调用 API（备用方案，当 Agent SDK 不可用时）"""
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    base_url = os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
+
+    # 确保 base_url 格式正确
+    if not base_url.endswith("/v1/messages"):
+        base_url = base_url.rstrip("/") + "/v1/messages"
+
     try:
         async with httpx.AsyncClient(timeout=180) as client:
             response = await client.post(
-                YUNWU_API_BASE,
+                base_url,
                 headers={
                     "Content-Type": "application/json",
-                    "x-api-key": YUNWU_API_KEY,
+                    "x-api-key": api_key,
                     "anthropic-version": "2023-06-01"
                 },
                 json={
-                    "model": CLAUDE_MODEL,
+                    "model": ANTHROPIC_MODEL,
                     "max_tokens": 8000,
                     "system": SYSTEM_PROMPT,
                     "messages": [
@@ -323,7 +375,7 @@ async def call_yunwu_claude_api(prompt: str) -> str:
                 return f"API 调用失败: {response.status_code}"
 
     except Exception as e:
-        print(f"[ERROR] yunwu.ai API call failed: {e}")
+        print(f"[ERROR] Direct API call failed: {e}")
         return f"API 调用异常: {e}"
 
 
@@ -333,7 +385,7 @@ async def call_yunwu_claude_api(prompt: str) -> str:
 if __name__ == "__main__":
     print("=" * 60)
     print("       Paper Reader - Cloud Execution Script")
-    print("       Using yunwu.ai Claude API")
+    print("       Using Claude Agent SDK + 通义万相")
     print("=" * 60)
     print()
 

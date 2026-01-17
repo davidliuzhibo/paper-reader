@@ -11,19 +11,12 @@
 | 需求 | GitHub Actions 支持情况 |
 |------|-------------------------|
 | Python 运行环境 | ✅ 原生支持 Python 3.11 |
-| 第三方 API 调用 | ✅ 通过 yunwu.ai 调用 Claude |
+| Claude Agent SDK | ✅ 可通过 pip 安装，支持自定义 Base URL |
 | PDF 文件处理 | ✅ PyPDF2 等库支持 |
 | 外部 API 调用 | ✅ 支持 HTTPS 出站请求 |
 | 定时触发 | ✅ cron 表达式支持 |
 | Secrets 管理 | ✅ 加密存储敏感信息 |
 | 文件存储 | ✅ Artifacts + Git 提交 |
-
-### ⚠️ 注意事项
-
-1. **运行时限制**: GitHub Actions 免费版每个 job 最长运行 6 小时
-2. **并发限制**: 免费账户最多 20 个并发 job
-3. **存储限制**: Artifacts 默认保留 90 天
-4. **网络限制**: 某些地区可能无法访问特定 API
 
 ---
 
@@ -40,14 +33,14 @@
 │   └── 推送 (push): papers/*.pdf 有新文件时                    │
 │                                                              │
 │   ┌─────────────┐    ┌──────────────────┐    ┌────────────┐ │
-│   │  Download   │ -> │  yunwu.ai API    │ -> │   Save     │ │
-│   │  PDF File   │    │  (Claude Opus)   │    │   Output   │ │
+│   │  Download   │ -> │  Claude Agent    │ -> │   Save     │ │
+│   │  PDF File   │    │  SDK (yunwu.ai)  │    │   Output   │ │
 │   └─────────────┘    └──────────────────┘    └────────────┘ │
 │                              │                              │
 │                              v                              │
 │                    ┌──────────────────┐                     │
-│                    │   Yunwu API      │                     │
-│                    │   (Image Gen)    │                     │
+│                    │   阿里通义万相    │                     │
+│                    │   (图片生成)      │                     │
 │                    └──────────────────┘                     │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
@@ -57,21 +50,21 @@
 
 ## 需要配置的 GitHub Secrets
 
+共需要配置 **4 个** Secrets：
+
+### Claude API 配置（通过 yunwu.ai 代理）
+
 | Secret 名称 | 用途 | 值 |
 |------------|------|-----|
-| `YUNWU_API_KEY` | yunwu.ai Claude API 认证 | `sk-GFAAGFNIHon8fFSLYvNZ8q4I1rE4NdkPYc5CNmP0LwTOmmN0` |
-| `YUNWU_IMAGE_API_KEY` | 图片生成 API 认证（可选） | `sk-vnGbZHjawACCghqzVzekqy8OPEa42UPnmL2rMKTmAbvZPywV` |
+| `ANTHROPIC_API_KEY` | API 认证密钥 | `sk-GFAAGFNIHon8fFSLYvNZ8q4I1rE4NdkPYc5CNmP0LwTOmmN0` |
+| `ANTHROPIC_BASE_URL` | API 端点地址 | `https://yunwu.ai` |
+| `ANTHROPIC_MODEL` | 模型名称 | `claude-opus-4-5-20251101` |
 
-### API 配置信息
+### 阿里通义万相配置
 
-**Claude API (通过 yunwu.ai)**:
-- 端点: `https://yunwu.ai/v1/messages`
-- 模型: `claude-opus-4-5-20251101`
-
-**图片生成 API**:
-- 端点: `https://yunwu.ai/v1beta/models/gemini-3-pro-image-preview:generateContent`
-
-> 💡 如果两个 API 使用相同的密钥，只需配置 `YUNWU_API_KEY` 即可。
+| Secret 名称 | 用途 | 值 |
+|------------|------|-----|
+| `DASHSCOPE_API_KEY` | 通义万相 API 密钥 | `sk-d044f39d8be848e898a81df4c5182444` |
 
 ---
 
@@ -83,7 +76,7 @@ paper-reader/
 │   └── workflows/
 │       └── paper-reader.yml      # GitHub Actions 工作流
 ├── scripts/
-│   └── cloud_paper_reader.py     # 云端执行脚本
+│   └── cloud_paper_reader.py     # 云端执行脚本（Claude Agent SDK + 通义万相）
 ├── papers/                        # 存放待处理的 PDF 文件
 │   └── .gitkeep
 ├── outputs/                       # 生成的解读文件
@@ -101,7 +94,7 @@ paper-reader/
 
 ```bash
 git add -A
-git commit -m "Update for yunwu.ai third-party API"
+git commit -m "Update: Claude Agent SDK + 通义万相"
 git push origin master
 ```
 
@@ -111,17 +104,27 @@ git push origin master
 2. 点击 **Settings** (设置)
 3. 在左侧菜单选择 **Secrets and variables** → **Actions**
 4. 点击 **New repository secret**
-5. 添加以下 Secrets:
+5. 依次添加以下 4 个 Secrets:
 
-#### Secret 1: YUNWU_API_KEY (必须)
+#### Secret 1: ANTHROPIC_API_KEY
 
-- **Name**: `YUNWU_API_KEY`
+- **Name**: `ANTHROPIC_API_KEY`
 - **Secret**: `sk-GFAAGFNIHon8fFSLYvNZ8q4I1rE4NdkPYc5CNmP0LwTOmmN0`
 
-#### Secret 2: YUNWU_IMAGE_API_KEY (可选，用于图片生成)
+#### Secret 2: ANTHROPIC_BASE_URL
 
-- **Name**: `YUNWU_IMAGE_API_KEY`
-- **Secret**: `sk-vnGbZHjawACCghqzVzekqy8OPEa42UPnmL2rMKTmAbvZPywV`
+- **Name**: `ANTHROPIC_BASE_URL`
+- **Secret**: `https://yunwu.ai`
+
+#### Secret 3: ANTHROPIC_MODEL
+
+- **Name**: `ANTHROPIC_MODEL`
+- **Secret**: `claude-opus-4-5-20251101`
+
+#### Secret 4: DASHSCOPE_API_KEY
+
+- **Name**: `DASHSCOPE_API_KEY`
+- **Secret**: `sk-d044f39d8be848e898a81df4c5182444`
 
 ### 步骤 3: 验证 Workflow
 
@@ -129,27 +132,29 @@ git push origin master
 2. 找到 "Paper Reader - 论文解读自动化" workflow
 3. 点击 **Run workflow** 手动触发测试
 
-### 步骤 4: 使用方式
+---
 
-#### 方式 A: 定时自动执行
+## 使用方式
+
+### 方式 A: 定时自动执行
 
 Workflow 会在每天北京时间 09:00 自动运行，处理 `papers/` 目录下最新的 PDF 文件。
 
-#### 方式 B: 手动触发 (传入 URL)
+### 方式 B: 手动触发 (传入 URL)
 
 1. 进入 Actions → Paper Reader
 2. 点击 **Run workflow**
 3. 在 `paper_url` 输入框填入论文 PDF 的 URL
 4. 点击 **Run workflow**
 
-#### 方式 C: 手动触发 (仓库内文件)
+### 方式 C: 手动触发 (仓库内文件)
 
 1. 进入 Actions → Paper Reader
 2. 点击 **Run workflow**
 3. 在 `paper_path` 输入框填入仓库内的文件路径，如 `papers/example.pdf`
 4. 点击 **Run workflow**
 
-#### 方式 D: 推送触发
+### 方式 D: 推送触发
 
 将 PDF 文件推送到 `papers/` 目录，workflow 会自动触发：
 
@@ -170,23 +175,50 @@ git push
 
 ---
 
+## 环境变量说明
+
+这些环境变量在 GitHub Actions 运行时自动注入：
+
+| 环境变量 | 来源 | 说明 |
+|---------|------|------|
+| `ANTHROPIC_API_KEY` | GitHub Secrets | Claude Agent SDK 自动读取此变量进行认证 |
+| `ANTHROPIC_BASE_URL` | GitHub Secrets | Claude Agent SDK 自动读取此变量作为 API 端点 |
+| `ANTHROPIC_MODEL` | GitHub Secrets | 脚本读取此变量指定模型 |
+| `DASHSCOPE_API_KEY` | GitHub Secrets | 通义万相图片生成 API 密钥 |
+| `PAPER_PATH` | Workflow 设置 | 待处理的论文文件路径 |
+
+> 💡 **注意**: 这些变量只需要在 GitHub Secrets 中配置，不需要在你的本地电脑上设置。
+
+---
+
 ## 故障排除
 
-### 问题: YUNWU_API_KEY 无效
+### 问题: ANTHROPIC_API_KEY 无效
 
 ```
-[ERROR] YUNWU_API_KEY environment variable is not set
+[ERROR] ANTHROPIC_API_KEY environment variable is not set
 ```
 
 **解决**: 检查 Secrets 是否正确配置，名称是否拼写正确。
 
-### 问题: API 返回 401
+### 问题: Claude API 返回错误
 
 ```
 [ERROR] API returned status 401
 ```
 
-**解决**: 检查 API Key 是否正确，或额度是否用尽。
+**解决**:
+1. 检查 `ANTHROPIC_API_KEY` 是否正确
+2. 检查 `ANTHROPIC_BASE_URL` 是否为 `https://yunwu.ai`
+3. 确认 yunwu.ai 账户额度是否充足
+
+### 问题: 图片生成失败
+
+```
+[WARN] DashScope API returned status 401
+```
+
+**解决**: 检查 `DASHSCOPE_API_KEY` 是否正确，或阿里云账户是否有余额。
 
 ### 问题: PDF 提取失败
 
@@ -204,11 +236,12 @@ git push
 |------|----------|----------|
 | GitHub Actions | 2000分钟/月 | ~5分钟/次 |
 | yunwu.ai Claude API | 按量付费 | 取决于套餐 |
-| yunwu.ai 图片 API | 按量付费 | ~2-3张/篇 |
+| 阿里通义万相 | 按量付费 | ~2张/篇 |
 
 ---
 
 ## 参考资料
 
-- [yunwu.ai API 文档](https://yunwu.ai)
+- [Claude Agent SDK Python](https://github.com/anthropics/claude-agent-sdk-python)
+- [阿里通义万相 API 文档](https://help.aliyun.com/zh/model-studio/developer-reference/tongyi-wanxiang-api)
 - [GitHub Actions 文档](https://docs.github.com/en/actions)
