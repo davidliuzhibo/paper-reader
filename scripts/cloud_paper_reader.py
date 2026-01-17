@@ -378,65 +378,45 @@ def convert_md_to_html(md_content: str, html_file: Path, title: str = "论文解
 
 
 def convert_html_to_pdf(html_file: Path, pdf_file: Path) -> bool:
-    """将 HTML 文件转换为 PDF（支持中文）"""
+    """将 HTML 文件转换为 PDF（使用 WeasyPrint，支持中文）"""
     try:
-        from xhtml2pdf import pisa
-        from reportlab.pdfbase import pdfmetrics
-        from reportlab.pdfbase.ttfonts import TTFont
-        import glob
+        from weasyprint import HTML, CSS
+        from weasyprint.text.fonts import FontConfiguration
 
-        # 尝试注册中文字体
-        font_registered = False
-        font_paths = [
-            # Ubuntu/Debian Noto Sans CJK
-            '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
-            '/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf',
-            '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
-            # 其他可能的路径
-            '/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc',
-        ]
+        print(f"[INFO] Converting HTML to PDF using WeasyPrint...")
 
-        # 动态搜索字体
-        for pattern in ['/usr/share/fonts/**/Noto*CJK*.ttc', '/usr/share/fonts/**/Noto*CJK*.otf']:
-            font_paths.extend(glob.glob(pattern, recursive=True))
+        # 配置字体
+        font_config = FontConfiguration()
 
-        for font_path in font_paths:
-            if os.path.exists(font_path):
-                try:
-                    pdfmetrics.registerFont(TTFont('NotoSansCJK', font_path))
-                    font_registered = True
-                    print(f"[INFO] Registered Chinese font: {font_path}")
-                    break
-                except Exception as e:
-                    print(f"[WARN] Failed to register font {font_path}: {e}")
-                    continue
-
-        if not font_registered:
-            print("[WARN] No Chinese font found, PDF may have encoding issues")
-
+        # 读取 HTML 文件
         with open(html_file, 'r', encoding='utf-8') as f:
             html_content = f.read()
 
-        # 为 PDF 优化
+        # 为 PDF 优化（移除渐变背景，调整样式）
         pdf_html = html_content.replace(
             'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);',
             'background: white;'
         )
 
-        # 如果注册了字体，替换字体引用
-        if font_registered:
-            pdf_html = pdf_html.replace(
-                "'Noto Sans CJK SC', 'Noto Sans SC', 'Microsoft YaHei', 'SimHei', sans-serif",
-                "'NotoSansCJK', 'Noto Sans CJK SC', sans-serif"
-            )
+        # 额外的 PDF 样式
+        pdf_css = CSS(string='''
+            @page {
+                size: A4;
+                margin: 2cm;
+            }
+            body {
+                font-family: "Noto Sans CJK SC", "Noto Sans SC", "SimHei", sans-serif;
+            }
+        ''', font_config=font_config)
 
-        with open(pdf_file, 'wb') as pdf:
-            pisa_status = pisa.CreatePDF(pdf_html, dest=pdf, encoding='utf-8')
+        # 生成 PDF
+        HTML(string=pdf_html).write_pdf(
+            pdf_file,
+            stylesheets=[pdf_css],
+            font_config=font_config
+        )
 
-        if pisa_status.err:
-            print(f"[WARN] PDF generated with warnings: {pdf_file}")
-        else:
-            print(f"[INFO] PDF file generated: {pdf_file}")
+        print(f"[INFO] PDF file generated: {pdf_file}")
         return True
 
     except Exception as e:

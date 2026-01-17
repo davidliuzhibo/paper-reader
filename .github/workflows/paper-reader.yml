@@ -43,12 +43,14 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcairo2-dev libpango1.0-dev libgdk-pixbuf2.0-dev fonts-noto-cjk fonts-noto-cjk-extra
+          sudo apt-get install -y libpango1.0-dev libpangocairo-1.0-0 fonts-noto-cjk fonts-noto-cjk-extra
+          # 刷新字体缓存
+          fc-cache -fv
 
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
-          pip install claude-agent-sdk anyio httpx PyPDF2 markdown xhtml2pdf
+          pip install claude-agent-sdk anyio httpx PyPDF2 markdown weasyprint
 
       - name: Create papers directory if not exists
         run: mkdir -p papers outputs
