@@ -1,0 +1,187 @@
+12s
+Run pip install --upgrade pip
+Requirement already satisfied: pip in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (25.3)
+Collecting claude-agent-sdk
+  Downloading claude_agent_sdk-0.1.20-py3-none-manylinux_2_17_x86_64.whl.metadata (12 kB)
+Collecting anyio
+  Downloading anyio-4.12.1-py3-none-any.whl.metadata (4.3 kB)
+Collecting httpx
+  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+Collecting PyPDF2
+  Downloading pypdf2-3.0.1-py3-none-any.whl.metadata (6.8 kB)
+Collecting markdown
+  Downloading markdown-3.10-py3-none-any.whl.metadata (5.1 kB)
+Collecting xhtml2pdf
+  Downloading xhtml2pdf-0.2.17-py3-none-any.whl.metadata (22 kB)
+Collecting mcp>=0.1.0 (from claude-agent-sdk)
+  Downloading mcp-1.25.0-py3-none-any.whl.metadata (89 kB)
+Collecting idna>=2.8 (from anyio)
+  Downloading idna-3.11-py3-none-any.whl.metadata (8.4 kB)
+Collecting typing_extensions>=4.5 (from anyio)
+  Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting certifi (from httpx)
+  Downloading certifi-2026.1.4-py3-none-any.whl.metadata (2.5 kB)
+Collecting httpcore==1.* (from httpx)
+  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+Collecting h11>=0.16 (from httpcore==1.*->httpx)
+  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting arabic-reshaper>=3.0.0 (from xhtml2pdf)
+  Downloading arabic_reshaper-3.0.0-py3-none-any.whl.metadata (12 kB)
+Collecting html5lib>=1.1 (from xhtml2pdf)
+  Downloading html5lib-1.1-py2.py3-none-any.whl.metadata (16 kB)
+Collecting Pillow>=8.1.1 (from xhtml2pdf)
+  Downloading pillow-12.1.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (8.8 kB)
+Collecting pyHanko>=0.12.1 (from xhtml2pdf)
+  Downloading pyhanko-0.32.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting pyhanko-certvalidator>=0.19.5 (from xhtml2pdf)
+  Downloading pyhanko_certvalidator-0.29.0-py3-none-any.whl.metadata (4.9 kB)
+Collecting pypdf>=3.1.0 (from xhtml2pdf)
+  Downloading pypdf-6.6.0-py3-none-any.whl.metadata (7.1 kB)
+Collecting python-bidi>=0.5.0 (from xhtml2pdf)
+  Downloading python_bidi-0.6.7-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.9 kB)
+Collecting reportlab<5,>=4.0.4 (from xhtml2pdf)
+  Downloading reportlab-4.4.9-py3-none-any.whl.metadata (1.7 kB)
+Collecting svglib>=1.2.1 (from xhtml2pdf)
+  Downloading svglib-1.6.0-py3-none-any.whl.metadata (11 kB)
+Collecting charset-normalizer (from reportlab<5,>=4.0.4->xhtml2pdf)
+  Downloading charset_normalizer-3.4.4-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (37 kB)
+Collecting six>=1.9 (from html5lib>=1.1->xhtml2pdf)
+  Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+Collecting webencodings (from html5lib>=1.1->xhtml2pdf)
+  Downloading webencodings-0.5.1-py2.py3-none-any.whl.metadata (2.1 kB)
+Collecting httpx-sse>=0.4 (from mcp>=0.1.0->claude-agent-sdk)
+  Downloading httpx_sse-0.4.3-py3-none-any.whl.metadata (9.7 kB)
+Collecting jsonschema>=4.20.0 (from mcp>=0.1.0->claude-agent-sdk)
+  Downloading jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)
+Collecting pydantic-settings>=2.5.2 (from mcp>=0.1.0->claude-agent-sdk)
+  Downloading pydantic_settings-2.12.0-py3-none-any.whl.metadata (3.4 kB)
+Collecting pydantic<3.0.0,>=2.11.0 (from mcp>=0.1.0->claude-agent-sdk)
+  Downloading pydantic-2.12.5-py3-none-any.whl.metadata (90 kB)
+Collecting pyjwt>=2.10.1 (from pyjwt[crypto]>=2.10.1->mcp>=0.1.0->claude-agent-sdk)
+  Downloading PyJWT-2.10.1-py3-none-any.whl.metadata (4.0 kB)
+Collecting python-multipart>=0.0.9 (from mcp>=0.1.0->claude-agent-sdk)
+  Downloading python_multipart-0.0.21-py3-none-any.whl.metadata (1.8 kB)
+Collecting sse-starlette>=1.6.1 (from mcp>=0.1.0->claude-agent-sdk)
+  Downloading sse_starlette-3.1.2-py3-none-any.whl.metadata (12 kB)
+Collecting starlette>=0.27 (from mcp>=0.1.0->claude-agent-sdk)
+  Downloading starlette-0.51.0-py3-none-any.whl.metadata (6.3 kB)
+Collecting typing-inspection>=0.4.1 (from mcp>=0.1.0->claude-agent-sdk)
+  Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)
+Collecting uvicorn>=0.31.1 (from mcp>=0.1.0->claude-agent-sdk)
+  Downloading uvicorn-0.40.0-py3-none-any.whl.metadata (6.7 kB)
+Collecting annotated-types>=0.6.0 (from pydantic<3.0.0,>=2.11.0->mcp>=0.1.0->claude-agent-sdk)
+  Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+Collecting pydantic-core==2.41.5 (from pydantic<3.0.0,>=2.11.0->mcp>=0.1.0->claude-agent-sdk)
+  Downloading pydantic_core-2.41.5-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (7.3 kB)
+Collecting attrs>=22.2.0 (from jsonschema>=4.20.0->mcp>=0.1.0->claude-agent-sdk)
+  Downloading attrs-25.4.0-py3-none-any.whl.metadata (10 kB)
+Collecting jsonschema-specifications>=2023.03.6 (from jsonschema>=4.20.0->mcp>=0.1.0->claude-agent-sdk)
+  Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)
+Collecting referencing>=0.28.4 (from jsonschema>=4.20.0->mcp>=0.1.0->claude-agent-sdk)
+  Downloading referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)
+Collecting rpds-py>=0.25.0 (from jsonschema>=4.20.0->mcp>=0.1.0->claude-agent-sdk)
+  Downloading rpds_py-0.30.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.1 kB)
+Collecting python-dotenv>=0.21.0 (from pydantic-settings>=2.5.2->mcp>=0.1.0->claude-agent-sdk)
+  Downloading python_dotenv-1.2.1-py3-none-any.whl.metadata (25 kB)
+Collecting asn1crypto>=1.5.1 (from pyHanko>=0.12.1->xhtml2pdf)
+  Downloading asn1crypto-1.5.1-py2.py3-none-any.whl.metadata (13 kB)
+Collecting tzlocal>=4.3 (from pyHanko>=0.12.1->xhtml2pdf)
+  Downloading tzlocal-5.3.1-py3-none-any.whl.metadata (7.6 kB)
+Collecting requests>=2.31.0 (from pyHanko>=0.12.1->xhtml2pdf)
+  Downloading requests-2.32.5-py3-none-any.whl.metadata (4.9 kB)
+Collecting pyyaml>=6.0 (from pyHanko>=0.12.1->xhtml2pdf)
+  Downloading pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+Collecting cryptography>=43.0.3 (from pyHanko>=0.12.1->xhtml2pdf)
+  Downloading cryptography-46.0.3-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (5.7 kB)
+Collecting lxml>=5.4.0 (from pyHanko>=0.12.1->xhtml2pdf)
+  Downloading lxml-6.0.2-cp311-cp311-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl.metadata (3.6 kB)
+Collecting oscrypto>=1.1.0 (from pyhanko-certvalidator>=0.19.5->xhtml2pdf)
+  Downloading oscrypto-1.3.0-py2.py3-none-any.whl.metadata (15 kB)
+Collecting uritools>=3.0.1 (from pyhanko-certvalidator>=0.19.5->xhtml2pdf)
+  Downloading uritools-6.0.1-py3-none-any.whl.metadata (5.1 kB)
+Collecting cffi>=2.0.0 (from cryptography>=43.0.3->pyHanko>=0.12.1->xhtml2pdf)
+  Downloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.6 kB)
+Collecting pycparser (from cffi>=2.0.0->cryptography>=43.0.3->pyHanko>=0.12.1->xhtml2pdf)
+  Downloading pycparser-2.23-py3-none-any.whl.metadata (993 bytes)
+Collecting urllib3<3,>=1.21.1 (from requests>=2.31.0->pyHanko>=0.12.1->xhtml2pdf)
+  Downloading urllib3-2.6.3-py3-none-any.whl.metadata (6.9 kB)
+Collecting cssselect2>=0.2.0 (from svglib>=1.2.1->xhtml2pdf)
+  Downloading cssselect2-0.8.0-py3-none-any.whl.metadata (2.9 kB)
+Collecting rlpycairo>=0.4.0 (from svglib>=1.2.1->xhtml2pdf)
+  Downloading rlpycairo-0.4.0-py3-none-any.whl.metadata (4.9 kB)
+Collecting tinycss2>=0.6.0 (from svglib>=1.2.1->xhtml2pdf)
+  Downloading tinycss2-1.5.1-py3-none-any.whl.metadata (3.0 kB)
+Collecting pycairo>=1.20.0 (from rlpycairo>=0.4.0->svglib>=1.2.1->xhtml2pdf)
+  Downloading pycairo-1.29.0.tar.gz (665 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 665.9/665.9 kB 79.5 MB/s  0:00:00
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'error'
+  error: subprocess-exited-with-error
+  
+  × Preparing metadata (pyproject.toml) did not run successfully.
+  │ exit code: 1
+  ╰─> [455 lines of output]
+      + meson setup /tmp/pip-install-qv6bp6sb/pycairo_4f777a3a8bc442678bb9afa9415fcf2f /tmp/pip-install-qv6bp6sb/pycairo_4f777a3a8bc442678bb9afa9415fcf2f/.mesonpy-1orjx1jg -Dbuildtype=release -Db_ndebug=if-release -Db_vscrt=md -Dwheel=true -Dtests=false --native-file=/tmp/pip-install-qv6bp6sb/pycairo_4f777a3a8bc442678bb9afa9415fcf2f/.mesonpy-1orjx1jg/meson-python-native-file.ini
+      The Meson build system
+      Version: 1.10.0
+      Source dir: /tmp/pip-install-qv6bp6sb/pycairo_4f777a3a8bc442678bb9afa9415fcf2f
+      Build dir: /tmp/pip-install-qv6bp6sb/pycairo_4f777a3a8bc442678bb9afa9415fcf2f/.mesonpy-1orjx1jg
+      Build type: native build
+      Project name: pycairo
+      Project version: 1.29.0
+      C compiler for the host machine: cc (gcc 13.3.0 "cc (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0")
+      C linker for the host machine: cc ld.bfd 2.42
+      Host machine cpu family: x86_64
+      Host machine cpu: x86_64
+      Program python3 found: YES (/opt/hostedtoolcache/Python/3.11.14/x64/bin/python)
+      Compiler for C supports arguments -Wall: YES
+      Compiler for C supports arguments -Warray-bounds: YES
+      Compiler for C supports arguments -Wcast-align: YES
+      Compiler for C supports arguments -Wconversion: YES
+      Compiler for C supports arguments -Wextra: YES
+      Compiler for C supports arguments -Wformat=2: YES
+      Compiler for C supports arguments -Wformat-nonliteral: YES
+      Compiler for C supports arguments -Wformat-security: YES
+      Compiler for C supports arguments -Wimplicit-function-declaration: YES
+      Compiler for C supports arguments -Winit-self: YES
+      Compiler for C supports arguments -Wmissing-format-attribute: YES
+      Compiler for C supports arguments -Wmissing-noreturn: YES
+      Compiler for C supports arguments -Wnested-externs: YES
+      Compiler for C supports arguments -Wold-style-definition: YES
+      Compiler for C supports arguments -Wpacked: YES
+      Compiler for C supports arguments -Wpointer-arith: YES
+      Compiler for C supports arguments -Wreturn-type: YES
+      Compiler for C supports arguments -Wshadow: YES
+      Compiler for C supports arguments -Wsign-compare: YES
+      Compiler for C supports arguments -Wstrict-aliasing: YES
+      Compiler for C supports arguments -Wundef: YES
+      Compiler for C supports arguments -Wunused-but-set-variable: YES
+      Compiler for C supports arguments -Wswitch-default: YES
+      Compiler for C supports arguments -Wno-missing-field-initializers: YES
+      Compiler for C supports arguments -Wno-unused-parameter: YES
+      Compiler for C supports arguments -fno-strict-aliasing: YES
+      Compiler for C supports arguments -fvisibility=hidden: YES
+      Found pkg-config: YES (/usr/bin/pkg-config) 1.8.1
+      Found CMake: /usr/local/bin/cmake (3.31.6)
+      Run-time dependency cairo found: NO (tried pkgconfig and cmake)
+      
+      ../cairo/meson.build:31:12: ERROR: Dependency "cairo" not found, tried pkgconfig and cmake
+      
+      A full log can be found at /tmp/pip-install-qv6bp6sb/pycairo_4f777a3a8bc442678bb9afa9415fcf2f/.mesonpy-1orjx1jg/meson-logs/meson-log.txt
+==== CI platform detected, click here for meson-log.txt contents. ====
+      
+      [end of output]
+  
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+error: metadata-generation-failed
+
+× Encountered error while generating package metadata.
+╰─> pycairo
+
+note: This is an issue with the package mentioned above, not pip.
+hint: See above for details.
+Error: Process completed with exit code 1.

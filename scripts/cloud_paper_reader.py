@@ -230,7 +230,7 @@ def convert_md_to_html(md_content: str, html_file: Path, title: str = "论文解
         # 转换为 HTML
         html_content = markdown.markdown(md_content, extensions=extensions)
 
-        # HTML 模板
+        # HTML 模板 (使用 Noto Sans CJK SC 支持中文)
         html_template = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -238,8 +238,12 @@ def convert_md_to_html(md_content: str, html_file: Path, title: str = "论文解
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
     <style>
+        @font-face {{
+            font-family: 'Noto Sans CJK SC';
+            src: local('Noto Sans CJK SC'), local('NotoSansCJK-Regular');
+        }}
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
+            font-family: 'Noto Sans CJK SC', 'Noto Sans SC', 'Microsoft YaHei', 'SimHei', sans-serif;
             line-height: 1.8;
             max-width: 900px;
             margin: 0 auto;
@@ -254,6 +258,7 @@ def convert_md_to_html(md_content: str, html_file: Path, title: str = "论文解
             box-shadow: 0 10px 40px rgba(0,0,0,0.1);
         }}
         h1 {{
+            font-family: 'Noto Sans CJK SC', 'Noto Sans SC', 'Microsoft YaHei', 'SimHei', sans-serif;
             color: #1a237e;
             border-bottom: 3px solid #3f51b5;
             padding-bottom: 10px;
@@ -261,6 +266,7 @@ def convert_md_to_html(md_content: str, html_file: Path, title: str = "论文解
             font-size: 2em;
         }}
         h2 {{
+            font-family: 'Noto Sans CJK SC', 'Noto Sans SC', 'Microsoft YaHei', 'SimHei', sans-serif;
             color: #283593;
             border-left: 4px solid #3f51b5;
             padding-left: 15px;
@@ -268,6 +274,7 @@ def convert_md_to_html(md_content: str, html_file: Path, title: str = "论文解
             font-size: 1.5em;
         }}
         h3 {{
+            font-family: 'Noto Sans CJK SC', 'Noto Sans SC', 'Microsoft YaHei', 'SimHei', sans-serif;
             color: #3949ab;
             margin-top: 25px;
             font-size: 1.2em;
@@ -371,18 +378,57 @@ def convert_md_to_html(md_content: str, html_file: Path, title: str = "论文解
 
 
 def convert_html_to_pdf(html_file: Path, pdf_file: Path) -> bool:
-    """将 HTML 文件转换为 PDF"""
+    """将 HTML 文件转换为 PDF（支持中文）"""
     try:
         from xhtml2pdf import pisa
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        import glob
+
+        # 尝试注册中文字体
+        font_registered = False
+        font_paths = [
+            # Ubuntu/Debian Noto Sans CJK
+            '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+            '/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf',
+            '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
+            # 其他可能的路径
+            '/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc',
+        ]
+
+        # 动态搜索字体
+        for pattern in ['/usr/share/fonts/**/Noto*CJK*.ttc', '/usr/share/fonts/**/Noto*CJK*.otf']:
+            font_paths.extend(glob.glob(pattern, recursive=True))
+
+        for font_path in font_paths:
+            if os.path.exists(font_path):
+                try:
+                    pdfmetrics.registerFont(TTFont('NotoSansCJK', font_path))
+                    font_registered = True
+                    print(f"[INFO] Registered Chinese font: {font_path}")
+                    break
+                except Exception as e:
+                    print(f"[WARN] Failed to register font {font_path}: {e}")
+                    continue
+
+        if not font_registered:
+            print("[WARN] No Chinese font found, PDF may have encoding issues")
 
         with open(html_file, 'r', encoding='utf-8') as f:
             html_content = f.read()
 
-        # 为 PDF 优化（移除渐变背景）
+        # 为 PDF 优化
         pdf_html = html_content.replace(
             'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);',
             'background: white;'
         )
+
+        # 如果注册了字体，替换字体引用
+        if font_registered:
+            pdf_html = pdf_html.replace(
+                "'Noto Sans CJK SC', 'Noto Sans SC', 'Microsoft YaHei', 'SimHei', sans-serif",
+                "'NotoSansCJK', 'Noto Sans CJK SC', sans-serif"
+            )
 
         with open(pdf_file, 'wb') as pdf:
             pisa_status = pisa.CreatePDF(pdf_html, dest=pdf, encoding='utf-8')
@@ -395,6 +441,8 @@ def convert_html_to_pdf(html_file: Path, pdf_file: Path) -> bool:
 
     except Exception as e:
         print(f"[ERROR] PDF conversion failed: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
