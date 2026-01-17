@@ -441,6 +441,17 @@ def convert_html_to_pdf(html_file: Path, pdf_file: Path) -> bool:
             'background: white;'
         )
 
+        # 将相对图片路径转换为绝对路径
+        html_dir = html_file.parent.absolute()
+        import re
+        # 匹配 src="image_X.png" 或 src='image_X.png'
+        pdf_html = re.sub(
+            r'src=["\']([^"\']+\.png)["\']',
+            lambda m: f'src="file://{html_dir / m.group(1)}"',
+            pdf_html
+        )
+        print(f"[INFO] Image base path: {html_dir}")
+
         # 额外的 PDF 样式
         pdf_css = CSS(string='''
             @page {
@@ -567,8 +578,8 @@ async def run_paper_reader():
     if DASHSCOPE_API_KEY:
         print("[INFO] Generating images with DashScope (通义万相)...")
         image_prompts = [
-            "一张学术论文核心概念的可视化插图，现代简洁的教育风格，清晰的图形设计，蓝色科技感配色，专业信息图表",
-            "一张学术研究成果的总结信息图，包含要点图标，现代商务风格，清晰易读的排版设计"
+            "abstract scientific visualization, neural network concept art, flowing data streams and connections, blue and purple gradient, modern minimalist style, no text, no letters, no words, clean geometric shapes",
+            "futuristic knowledge concept illustration, glowing nodes and pathways, deep learning visualization, technological aesthetic, dark blue background with bright accents, no text, no letters, no characters"
         ]
 
         for i, prompt in enumerate(image_prompts):
