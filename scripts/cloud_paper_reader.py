@@ -33,7 +33,12 @@ import httpx
 # Claude API 配置（通过 yunwu.ai 代理，由 Agent SDK 自动读取）
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-5-20251101")
 
-# 阿里通义万相配置（从环境变量读取）
+# Gemini 图像生成配置（通过 yunwu.ai 代理）
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GEMINI_BASE_URL = os.environ.get("GEMINI_BASE_URL", "https://yunwu.ai/v1beta/models")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3-pro-image-preview")
+
+# 阿里通义万相配置（备用）
 DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY")
 DASHSCOPE_BASE_URL = os.environ.get("DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
 DASHSCOPE_MODEL = os.environ.get("DASHSCOPE_MODEL", "wanx2.1-t2i-turbo")
@@ -223,6 +228,86 @@ async def generate_image_dashscope(prompt: str, image_index: int) -> str | None:
 
     except Exception as e:
         print(f"[ERROR] Image generation failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+# ============================================================
+# 图片生成函数（Gemini 3 Pro Image - 通过 yunwu.ai 代理）
+# ============================================================
+async def generate_image_gemini(prompt: str, image_index: int) -> str | None:
+    """调用 Gemini 3 Pro Image API 生成图片"""
+    if not GEMINI_API_KEY:
+        print(f"[WARN] GEMINI_API_KEY not set, skipping image {image_index}")
+        return None
+
+    # Gemini API 端点
+    api_url = f"{GEMINI_BASE_URL}/{GEMINI_MODEL}:generateContent"
+
+    print(f"[INFO] Generating image {image_index} with Gemini model: {GEMINI_MODEL}")
+    print(f"[INFO] API endpoint: {api_url}")
+
+    try:
+        async with httpx.AsyncClient(timeout=180) as client:
+            response = await client.post(
+                api_url,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {GEMINI_API_KEY}"
+                },
+                json={
+                    "contents": [
+                        {
+                            "parts": [
+                                {"text": prompt}
+                            ]
+                        }
+                    ],
+                    "generationConfig": {
+                        "responseModalities": ["TEXT", "IMAGE"]
+                    }
+                }
+            )
+
+            print(f"[INFO] Gemini API response status: {response.status_code}")
+
+            if response.status_code != 200:
+                print(f"[WARN] Gemini API returned status {response.status_code}")
+                print(f"[WARN] Response: {response.text[:500]}")
+                return None
+
+            result = response.json()
+            print(f"[DEBUG] Gemini response: {json.dumps(result, ensure_ascii=False)[:500]}")
+
+            # 解析 Gemini 响应，查找图片数据
+            candidates = result.get("candidates", [])
+            if not candidates:
+                print(f"[WARN] No candidates in Gemini response")
+                return None
+
+            parts = candidates[0].get("content", {}).get("parts", [])
+            for part in parts:
+                if "inlineData" in part:
+                    inline_data = part["inlineData"]
+                    mime_type = inline_data.get("mimeType", "image/png")
+                    image_b64 = inline_data.get("data", "")
+
+                    if image_b64:
+                        # 解码并保存图片
+                        image_bytes = base64.b64decode(image_b64)
+                        ext = "png" if "png" in mime_type else "jpg"
+                        image_path = OUTPUT_DIR / f"image_{image_index}.{ext}"
+                        with open(image_path, "wb") as f:
+                            f.write(image_bytes)
+                        print(f"[INFO] Image {image_index} saved to {image_path}")
+                        return str(image_path)
+
+            print(f"[WARN] No image data found in Gemini response")
+            return None
+
+    except Exception as e:
+        print(f"[ERROR] Gemini image generation failed: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -571,15 +656,34 @@ async def run_paper_reader():
     # 计算处理时间
     processing_time = (datetime.now() - start_time).total_seconds()
 
-    # 生成配图（使用通义万相）
+    # 生成配图（优先使用 Gemini，备用 DashScope）
     image_status = "未生成"
     generated_images = []
 
-    if DASHSCOPE_API_KEY:
-        print("[INFO] Generating images with DashScope (通义万相)...")
+    if GEMINI_API_KEY:
+        print("[INFO] Generating images with Gemini 3 Pro Image...")
+        # Gemini 擅长生成带文字的信息图
         image_prompts = [
-            "abstract scientific visualization, neural network concept art, flowing data streams and connections, blue and purple gradient, modern minimalist style, no text, no letters, no words, clean geometric shapes",
-            "futuristic knowledge concept illustration, glowing nodes and pathways, deep learning visualization, technological aesthetic, dark blue background with bright accents, no text, no letters, no characters"
+            "Create an informative infographic about the Transformer architecture in deep learning. Include a visual diagram showing: 1) Input embeddings 2) Multi-head attention mechanism 3) Feed-forward layers 4) Output. Use clean modern design with blue and white colors. Add clear labels in English.",
+            "Create a visual summary diagram showing the key innovation of 'Attention Is All You Need' paper. Illustrate how self-attention works: Query, Key, Value vectors connecting words in a sentence. Use professional scientific illustration style with annotations."
+        ]
+
+        for i, prompt in enumerate(image_prompts):
+            img_path = await generate_image_gemini(prompt, i + 1)
+            if img_path:
+                generated_images.append(img_path)
+
+        if generated_images:
+            image_status = f"成功 ({len(generated_images)}张, Gemini)"
+        else:
+            image_status = "Gemini 失败"
+
+    # 如果 Gemini 失败或未配置，尝试 DashScope
+    if not generated_images and DASHSCOPE_API_KEY:
+        print("[INFO] Falling back to DashScope (通义万相)...")
+        image_prompts = [
+            "abstract scientific visualization, neural network concept art, flowing data streams and connections, blue and purple gradient, modern minimalist style, clean geometric shapes",
+            "futuristic knowledge concept illustration, glowing nodes and pathways, deep learning visualization, technological aesthetic, dark blue background with bright accents"
         ]
 
         for i, prompt in enumerate(image_prompts):
@@ -588,10 +692,11 @@ async def run_paper_reader():
                 generated_images.append(img_path)
 
         if generated_images:
-            image_status = f"成功 ({len(generated_images)}张)"
+            image_status = f"成功 ({len(generated_images)}张, DashScope)"
         else:
             image_status = "失败（API 错误）"
-    else:
+
+    if not GEMINI_API_KEY and not DASHSCOPE_API_KEY:
         print("[INFO] DASHSCOPE_API_KEY not set, skipping image generation")
 
     # 添加元数据
