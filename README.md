@@ -1,145 +1,152 @@
-# 论文解读Skill项目文档
+# 论文解读 Skill 项目 (Paper Reader)
 
 ## 项目概述
 
-本项目创建了一个名为`lunwen`的Claude Skill，用于自动读取和解释学术论文。
+本项目创建了一个名为 `lunwen` 的 Claude Skill，用于自动读取和解释学术论文。**v3.0 版本已支持 GitHub Actions 云端自动化执行。**
 
 ### 核心功能
-- 📄 读取PDF文件或URL链接的学术论文
+- 📄 读取 PDF 文件或 URL 链接的学术论文
 - 🎯 提取并分析论文核心内容
 - ✍️ 用"黄叔风格"生成通俗易懂的中文解读
-- 🖼️ 自动生成2-3张配图（通过Nano Banana API）
-- 📝 输出结构化的Markdown文档
+- 🖼️ 自动生成信息图表（Gemini 3 Pro Image）
+- 📝 输出 Markdown + HTML + PDF 三种格式
+- ☁️ GitHub Actions 云端定时/手动执行
 
 ### 设计理念
 - **零打断自动化**：静默执行模式，无需用户确认
-- **降级策略**：遇到错误时自动降级处理，确保总能输出结果
+- **智能降级**：遇到错误时自动降级处理，确保总能输出结果
 - **黄叔风格**：个人化叙事、通俗化表达、故事化结构
+
+---
+
+## 🚀 快速开始（GitHub Actions 云端版）
+
+### 仓库地址
+**GitHub**: https://github.com/davidliuzhibo/paper-reader
+
+### 使用方式
+
+#### 方式 1: 手动触发（推荐）
+1. 打开 https://github.com/davidliuzhibo/paper-reader/actions
+2. 点击 "Paper Reader - 论文解读自动化"
+3. 点击 "Run workflow"
+4. 输入论文 PDF 的 URL
+5. 点击运行，等待 2-3 分钟
+
+#### 方式 2: 定时自动执行
+Workflow 每天北京时间 09:00 自动运行，处理 `papers/` 目录下最新的 PDF。
+
+#### 方式 3: 推送触发
+```bash
+cp ~/Downloads/new-paper.pdf papers/
+git add papers/new-paper.pdf
+git commit -m "Add new paper"
+git push
+```
+
+### 输出结果
+运行完成后，`outputs/` 目录将包含：
+- `paper-explanation-*.md` - Markdown 源文件
+- `paper-explanation-*.html` - 精美网页版
+- `paper-explanation-*.pdf` - 中文 PDF（含配图）
+- `image_*.png` - Gemini 生成的信息图表
 
 ---
 
 ## 项目结构
 
 ```
-CC_20260108/
+paper-reader/
+├── .github/
+│   └── workflows/
+│       └── paper-reader.yml      # GitHub Actions 工作流
+├── scripts/
+│   └── cloud_paper_reader.py     # 云端执行脚本
+├── papers/                        # 存放待处理的 PDF 文件
+├── outputs/                       # 生成的解读文件
 ├── skills/
 │   └── lunwen/
-│       └── SKILL.md          # Skill定义文件
-├── SuperHuang/               # 参考资料（黄叔风格样本）
-│   ├── CC让我用上了最强的语音输入法_20260114.pdf
-│   ├── 万字长文：为什么AI陪伴产品都想抄星野？.pdf
-│   ├── 黄叔是如何在AI浪潮中找到清晰方向的.pdf
-│   └── 三次转型，AI编程蓝皮书改变了我的2025：黄叔的年终总结.pdf
-└── README.md                 # 本文档
+│       └── SKILL.md              # 原始 Skill 定义
+├── FINAL_REPORT.md               # 完整报告
+├── GITHUB_ACTIONS_DEPLOYMENT.md  # 部署指南
+└── README.md                     # 本文档
 ```
 
 ---
 
-## 使用方法
+## 技术架构
 
-### 方式1：斜杠命令（推荐）
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    GitHub Actions Workflow                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   触发: 定时 / 手动 / 推送                                    │
+│                                                              │
+│   PDF解析 ──> Claude API ──> 输出 (MD/HTML/PDF)              │
+│      │         (yunwu.ai)                                    │
+│      v                                                       │
+│   图像生成: Gemini 3 Pro (优先) / 通义万相 (备用)              │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## GitHub Secrets 配置（共 9 个）
+
+| 类别 | Secret 名称 | 用途 |
+|------|------------|------|
+| Claude | `ANTHROPIC_API_KEY` | API 密钥 |
+| Claude | `ANTHROPIC_BASE_URL` | yunwu.ai 代理地址 |
+| Claude | `ANTHROPIC_MODEL` | 模型名称 |
+| Gemini | `GEMINI_API_KEY` | API 密钥 |
+| Gemini | `GEMINI_BASE_URL` | yunwu.ai 代理地址 |
+| Gemini | `GEMINI_MODEL` | gemini-3-pro-image-preview |
+| DashScope | `DASHSCOPE_API_KEY` | 通义万相 API 密钥 |
+| DashScope | `DASHSCOPE_BASE_URL` | DashScope API 地址 |
+| DashScope | `DASHSCOPE_MODEL` | wanx2.1-t2i-turbo |
+
+---
+
+## 本地使用（斜杠命令）
+
+如果你在本地安装了 Claude Code，也可以使用斜杠命令：
+
 ```bash
 /lunwen https://arxiv.org/pdf/1706.03762.pdf
 ```
 
-### 方式2：自然语言触发
+或自然语言触发：
 ```
 帮我读这篇论文：https://arxiv.org/pdf/2103.14030.pdf
-解释这个研究：./papers/my-paper.pdf
-论文解读：[URL或文件路径]
 ```
 
-### 输出结果
-- 文件名格式：`paper-explanation-[YYYYMMDD-HHMMSS].md`
-- 保存位置：当前工作目录
-- 内容长度：3000-5000字
-- 配图数量：2-3张（如果API成功）
-
 ---
 
-## 技术细节
+## 版本历史
 
-### Skill配置
-- **名称**：`lunwen`
-- **文件位置**：`skills/lunwen/SKILL.md`
-- **触发方式**：斜杠命令或语义理解
+### v3.0 (2026-01-17) - GitHub Actions 云端部署
+- ✅ 新增：GitHub Actions 自动化工作流
+- ✅ 新增：Gemini 3 Pro Image 图像生成
+- ✅ 新增：WeasyPrint PDF 中文支持
+- ✅ 新增：多服务商智能降级
+- ✅ 新增：定时/手动/推送三种触发方式
 
-### API集成
-- **服务**：Nano Banana API
-- **模型**：gemini-3-pro-image-preview
-- **端点**：`https://yunwu.ai/v1beta/models/gemini-3-pro-image-preview:generateContent`
-- **超时设置**：30秒
-- **重试策略**：失败后重试1次
+### v2.0 (2026-01-14) - 多格式输出
+- ✅ 新增：HTML 格式输出
+- ✅ 新增：PDF 格式输出
+- ✅ 新增：阿里通义万相 API 集成
 
-### 工作流程
-1. **输入获取**：识别PDF文件路径或URL
-2. **内容提取**：使用Read工具提取PDF内容
-3. **论文分析**：提取标题、摘要、方法、发现、结论
-4. **风格转换**：应用"黄叔风格"生成通俗解读
-5. **配图生成**：调用API生成2-3张配图
-6. **输出生成**：写入Markdown文件
-
----
-
-## 开发过程记录
-
-### 设计阶段（四阶段方法）
-1. **Phase 1: Heuristic Discovery** - 识别所有自动化阻塞点
-2. **Phase 2: Skill Blueprint** - 设计自动化逻辑和工作流
-3. **Phase 3: Authoring SKILL.md** - 编写完整的技能文件
-4. **Phase 4: Validation Matrix** - 创建测试场景矩阵
-
-### 遇到的问题与解决方案
-
-#### 问题1：Skill无法被识别
-**现象**：使用 `/lunwen` 命令时提示 "Unknown skill: lunwen"
-
-**原因**：SKILL.md文件缺少必需的YAML frontmatter部分
-
-**解决方案**：
-在SKILL.md开头添加：
-```markdown
----
-name: lunwen
-description: "..."
----
-```
-
-#### 问题2：需要重启才能生效
-**说明**：修改SKILL.md后，需要重启Claude Code才能识别新的skill
-
-#### 问题3：YAML frontmatter位置错误
-**现象**：尽管添加了YAML frontmatter，但使用 `/lunwen` 命令时仍提示 "Unknown skill: lunwen"
-
-**原因**：YAML frontmatter必须位于文件的**最开头**，不能在任何其他内容（包括标题）之前。原文件结构错误：
-```markdown
-# 论文解读助手
-
----
-name: lunwen
-description: "..."
----
-```
-
-**解决方案**：
-将YAML frontmatter移到文件最开头，确保没有任何内容在它之前：
-```markdown
----
-name: lunwen
-description: "..."
----
-
-# 论文解读助手
-```
-
-**重要提醒**：修改后必须重启Claude Code才能生效。
+### v1.0 (2026-01-14) - 初始版本
+- ✅ Markdown 格式输出
+- ✅ "黄叔风格"论文解读
 
 ---
 
 ## 参考资料
 
 ### "黄叔风格"特征
-基于SuperHuang文件夹中的4篇参考文档提取：
 - 个人化叙事（第一人称视角）
 - 通俗化表达（避免术语堆砌）
 - 故事化结构（场景引入）
@@ -148,15 +155,12 @@ description: "..."
 
 ---
 
-## 下一步
+## 许可说明
 
-1. ✅ ~~创建SKILL.md文件~~ (已完成)
-2. ✅ ~~修复YAML frontmatter格式问题~~ (已完成)
-3. **重启Claude Code**以加载修复后的skill
-4. **测试skill功能**：使用 `/lunwen https://arxiv.org/pdf/1706.03762.pdf` 测试
-5. **迭代优化**：根据实际使用效果调整
+- 本工具使用的 API 服务遵循各自的服务条款
+- 生成的解读内容仅供学习交流使用
+- 原论文版权归原作者所有
 
 ---
 
-*文档创建时间：2026-01-14*
-*最后更新时间：2026-01-14 (修复YAML frontmatter位置问题)*
+*文档更新时间：2026-01-17*
