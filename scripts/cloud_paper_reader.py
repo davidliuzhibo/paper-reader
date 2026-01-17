@@ -30,10 +30,10 @@ import httpx
 # Claude API 配置（通过 yunwu.ai 代理，由 Agent SDK 自动读取）
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-5-20251101")
 
-# 阿里通义万相配置
+# 阿里通义万相配置（从环境变量读取）
 DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY")
-DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-DASHSCOPE_MODEL = "wanx2.1-t2i-turbo"  # 通义万相文生图模型
+DASHSCOPE_BASE_URL = os.environ.get("DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
+DASHSCOPE_MODEL = os.environ.get("DASHSCOPE_MODEL", "wan2.6-image")
 
 # 论文路径
 PAPER_PATH = os.environ.get("PAPER_PATH", "")

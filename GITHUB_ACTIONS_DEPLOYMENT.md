@@ -50,7 +50,7 @@
 
 ## 需要配置的 GitHub Secrets
 
-共需要配置 **4 个** Secrets：
+共需要配置 **6 个** Secrets：
 
 ### Claude API 配置（通过 yunwu.ai 代理）
 
@@ -65,6 +65,8 @@
 | Secret 名称 | 用途 | 值 |
 |------------|------|-----|
 | `DASHSCOPE_API_KEY` | 通义万相 API 密钥 | `sk-d044f39d8be848e898a81df4c5182444` |
+| `DASHSCOPE_BASE_URL` | 通义万相 API 端点 | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
+| `DASHSCOPE_MODEL` | 通义万相模型名称 | `wan2.6-image` |
 
 ---
 
@@ -104,27 +106,23 @@ git push origin master
 2. 点击 **Settings** (设置)
 3. 在左侧菜单选择 **Secrets and variables** → **Actions**
 4. 点击 **New repository secret**
-5. 依次添加以下 4 个 Secrets:
+5. 依次添加以下 6 个 Secrets:
 
-#### Secret 1: ANTHROPIC_API_KEY
+#### Claude API 配置（3 个）
 
-- **Name**: `ANTHROPIC_API_KEY`
-- **Secret**: `sk-GFAAGFNIHon8fFSLYvNZ8q4I1rE4NdkPYc5CNmP0LwTOmmN0`
+| Name | Secret |
+|------|--------|
+| `ANTHROPIC_API_KEY` | `sk-GFAAGFNIHon8fFSLYvNZ8q4I1rE4NdkPYc5CNmP0LwTOmmN0` |
+| `ANTHROPIC_BASE_URL` | `https://yunwu.ai` |
+| `ANTHROPIC_MODEL` | `claude-opus-4-5-20251101` |
 
-#### Secret 2: ANTHROPIC_BASE_URL
+#### 阿里通义万相配置（3 个）
 
-- **Name**: `ANTHROPIC_BASE_URL`
-- **Secret**: `https://yunwu.ai`
-
-#### Secret 3: ANTHROPIC_MODEL
-
-- **Name**: `ANTHROPIC_MODEL`
-- **Secret**: `claude-opus-4-5-20251101`
-
-#### Secret 4: DASHSCOPE_API_KEY
-
-- **Name**: `DASHSCOPE_API_KEY`
-- **Secret**: `sk-d044f39d8be848e898a81df4c5182444`
+| Name | Secret |
+|------|--------|
+| `DASHSCOPE_API_KEY` | `sk-d044f39d8be848e898a81df4c5182444` |
+| `DASHSCOPE_BASE_URL` | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
+| `DASHSCOPE_MODEL` | `wan2.6-image` |
 
 ### 步骤 3: 验证 Workflow
 
@@ -183,8 +181,10 @@ git push
 |---------|------|------|
 | `ANTHROPIC_API_KEY` | GitHub Secrets | Claude Agent SDK 自动读取此变量进行认证 |
 | `ANTHROPIC_BASE_URL` | GitHub Secrets | Claude Agent SDK 自动读取此变量作为 API 端点 |
-| `ANTHROPIC_MODEL` | GitHub Secrets | 脚本读取此变量指定模型 |
+| `ANTHROPIC_MODEL` | GitHub Secrets | 脚本读取此变量指定 Claude 模型 |
 | `DASHSCOPE_API_KEY` | GitHub Secrets | 通义万相图片生成 API 密钥 |
+| `DASHSCOPE_BASE_URL` | GitHub Secrets | 通义万相 API 端点 |
+| `DASHSCOPE_MODEL` | GitHub Secrets | 通义万相模型名称 |
 | `PAPER_PATH` | Workflow 设置 | 待处理的论文文件路径 |
 
 > 💡 **注意**: 这些变量只需要在 GitHub Secrets 中配置，不需要在你的本地电脑上设置。
