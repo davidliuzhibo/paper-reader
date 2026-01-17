@@ -43,7 +43,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install claude-agent-sdk anyio httpx PyPDF2
+          pip install claude-agent-sdk anyio httpx PyPDF2 markdown xhtml2pdf
 
       - name: Create papers directory if not exists
         run: mkdir -p papers outputs

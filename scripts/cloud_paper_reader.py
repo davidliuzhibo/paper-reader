@@ -3,13 +3,16 @@
 """
 云端论文解读执行脚本
 使用 Claude Agent SDK 调用 Claude 模型（通过 yunwu.ai 代理）
-使用阿里通义万相 2.6 生成配图
+使用阿里通义万相生成配图
+输出 Markdown、HTML、PDF 三种格式
 
 环境变量（GitHub Secrets 配置）:
   - ANTHROPIC_API_KEY: yunwu.ai API 密钥
   - ANTHROPIC_BASE_URL: yunwu.ai API 端点
   - ANTHROPIC_MODEL: Claude 模型名称
   - DASHSCOPE_API_KEY: 阿里通义万相 API 密钥
+  - DASHSCOPE_BASE_URL: 阿里通义万相 API 端点
+  - DASHSCOPE_MODEL: 阿里通义万相模型名称
   - PAPER_PATH: 论文文件路径
 """
 
@@ -33,7 +36,7 @@ ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-5-20251101")
 # 阿里通义万相配置（从环境变量读取）
 DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY")
 DASHSCOPE_BASE_URL = os.environ.get("DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
-DASHSCOPE_MODEL = os.environ.get("DASHSCOPE_MODEL", "wan2.6-image")
+DASHSCOPE_MODEL = os.environ.get("DASHSCOPE_MODEL", "wanx2.1-t2i-turbo")
 
 # 论文路径
 PAPER_PATH = os.environ.get("PAPER_PATH", "")
@@ -117,8 +120,11 @@ async def generate_image_dashscope(prompt: str, image_index: int) -> str | None:
         print(f"[WARN] DASHSCOPE_API_KEY not set, skipping image {image_index}")
         return None
 
+    print(f"[INFO] Generating image {image_index} with model: {DASHSCOPE_MODEL}")
+    print(f"[INFO] API endpoint: {DASHSCOPE_BASE_URL}/images/generations")
+
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
+        async with httpx.AsyncClient(timeout=120) as client:
             # 通义万相使用 OpenAI 兼容格式
             response = await client.post(
                 f"{DASHSCOPE_BASE_URL}/images/generations",
@@ -130,25 +136,32 @@ async def generate_image_dashscope(prompt: str, image_index: int) -> str | None:
                     "model": DASHSCOPE_MODEL,
                     "prompt": prompt,
                     "n": 1,
-                    "size": "1024x1024"
+                    "size": "1024*1024"  # 通义万相使用 * 而不是 x
                 }
             )
 
+            print(f"[INFO] DashScope API response status: {response.status_code}")
+
             if response.status_code == 200:
                 result = response.json()
+                print(f"[DEBUG] API response: {json.dumps(result, ensure_ascii=False)[:500]}")
+
                 if "data" in result and len(result["data"]) > 0:
                     image_data = result["data"][0]
 
                     # 检查返回的是 URL 还是 base64
                     if "url" in image_data:
                         # 下载图片并保存
-                        img_response = await client.get(image_data["url"])
+                        print(f"[INFO] Downloading image from URL...")
+                        img_response = await client.get(image_data["url"], timeout=60)
                         if img_response.status_code == 200:
                             image_path = OUTPUT_DIR / f"image_{image_index}.png"
                             with open(image_path, "wb") as f:
                                 f.write(img_response.content)
                             print(f"[INFO] Image {image_index} saved to {image_path}")
                             return str(image_path)
+                        else:
+                            print(f"[WARN] Failed to download image: {img_response.status_code}")
                     elif "b64_json" in image_data:
                         # 直接保存 base64 数据
                         image_bytes = base64.b64decode(image_data["b64_json"])
@@ -161,11 +174,14 @@ async def generate_image_dashscope(prompt: str, image_index: int) -> str | None:
                 print(f"[WARN] Unexpected API response format for image {image_index}")
                 return None
             else:
-                print(f"[WARN] DashScope API returned status {response.status_code}: {response.text}")
+                print(f"[WARN] DashScope API returned status {response.status_code}")
+                print(f"[WARN] Response: {response.text[:500]}")
                 return None
 
     except Exception as e:
         print(f"[ERROR] Image generation failed: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
@@ -192,6 +208,194 @@ def extract_pdf_text(pdf_path: str) -> str:
     except Exception as e:
         print(f"[ERROR] PDF extraction failed: {e}")
         return ""
+
+
+# ============================================================
+# Markdown 转 HTML/PDF
+# ============================================================
+def convert_md_to_html(md_content: str, html_file: Path, title: str = "论文解读") -> bool:
+    """将 Markdown 内容转换为 HTML 文件"""
+    try:
+        import markdown
+
+        # 配置 Markdown 扩展
+        extensions = [
+            'markdown.extensions.extra',
+            'markdown.extensions.codehilite',
+            'markdown.extensions.toc',
+            'markdown.extensions.tables',
+            'markdown.extensions.fenced_code'
+        ]
+
+        # 转换为 HTML
+        html_content = markdown.markdown(md_content, extensions=extensions)
+
+        # HTML 模板
+        html_template = f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
+            line-height: 1.8;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }}
+        .container {{
+            background-color: white;
+            padding: 50px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }}
+        h1 {{
+            color: #1a237e;
+            border-bottom: 3px solid #3f51b5;
+            padding-bottom: 10px;
+            margin-top: 40px;
+            font-size: 2em;
+        }}
+        h2 {{
+            color: #283593;
+            border-left: 4px solid #3f51b5;
+            padding-left: 15px;
+            margin-top: 35px;
+            font-size: 1.5em;
+        }}
+        h3 {{
+            color: #3949ab;
+            margin-top: 25px;
+            font-size: 1.2em;
+        }}
+        p {{
+            text-align: justify;
+            margin: 15px 0;
+        }}
+        code {{
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: Consolas, Monaco, monospace;
+            font-size: 0.9em;
+            color: #e91e63;
+        }}
+        pre {{
+            background-color: #2b2b2b;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }}
+        pre code {{
+            background-color: transparent;
+            color: inherit;
+            padding: 0;
+        }}
+        blockquote {{
+            border-left: 4px solid #ffb74d;
+            padding-left: 15px;
+            margin: 20px 0;
+            color: #666;
+            font-style: italic;
+            background-color: #fff8e1;
+            padding: 15px;
+            border-radius: 5px;
+        }}
+        table {{
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+        }}
+        th, td {{
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }}
+        th {{
+            background-color: #3f51b5;
+            color: white;
+        }}
+        tr:nth-child(even) {{
+            background-color: #f9f9f9;
+        }}
+        img {{
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 20px auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }}
+        hr {{
+            border: none;
+            border-top: 2px solid #e0e0e0;
+            margin: 30px 0;
+        }}
+        strong {{
+            color: #d32f2f;
+        }}
+        footer {{
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            color: #999;
+            font-size: 0.9em;
+        }}
+    </style>
+</head>
+<body>
+<div class="container">
+{html_content}
+<footer>
+    <p>本解读由 GitHub Actions + Claude Agent SDK + 通义万相 自动生成</p>
+</footer>
+</div>
+</body>
+</html>"""
+
+        with open(html_file, 'w', encoding='utf-8') as f:
+            f.write(html_template)
+
+        print(f"[INFO] HTML file generated: {html_file}")
+        return True
+
+    except Exception as e:
+        print(f"[ERROR] HTML conversion failed: {e}")
+        return False
+
+
+def convert_html_to_pdf(html_file: Path, pdf_file: Path) -> bool:
+    """将 HTML 文件转换为 PDF"""
+    try:
+        from xhtml2pdf import pisa
+
+        with open(html_file, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+
+        # 为 PDF 优化（移除渐变背景）
+        pdf_html = html_content.replace(
+            'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);',
+            'background: white;'
+        )
+
+        with open(pdf_file, 'wb') as pdf:
+            pisa_status = pisa.CreatePDF(pdf_html, dest=pdf, encoding='utf-8')
+
+        if pisa_status.err:
+            print(f"[WARN] PDF generated with warnings: {pdf_file}")
+        else:
+            print(f"[INFO] PDF file generated: {pdf_file}")
+        return True
+
+    except Exception as e:
+        print(f"[ERROR] PDF conversion failed: {e}")
+        return False
 
 
 # ============================================================
@@ -287,14 +491,15 @@ async def run_paper_reader():
 
     # 生成配图（使用通义万相）
     image_status = "未生成"
+    generated_images = []
+
     if DASHSCOPE_API_KEY:
         print("[INFO] Generating images with DashScope (通义万相)...")
         image_prompts = [
-            "学术论文核心概念可视化插图，现代简洁的教育风格，清晰的图形和标注，蓝色科技感配色",
-            "学术研究成果信息图，包含3-5个要点的总结图表，现代信息图表风格，专业商务感"
+            "一张学术论文核心概念的可视化插图，现代简洁的教育风格，清晰的图形设计，蓝色科技感配色，专业信息图表",
+            "一张学术研究成果的总结信息图，包含要点图标，现代商务风格，清晰易读的排版设计"
         ]
 
-        generated_images = []
         for i, prompt in enumerate(image_prompts):
             img_path = await generate_image_dashscope(prompt, i + 1)
             if img_path:
@@ -325,18 +530,37 @@ async def run_paper_reader():
 *本解读由 GitHub Actions + Claude Agent SDK + 通义万相 自动生成*
 """
 
-    final_output = explanation + metadata
+    # 如果有图片，在文章末尾添加图片引用
+    image_section = ""
+    if generated_images:
+        image_section = "\n\n---\n\n## 配图\n\n"
+        for i, img_path in enumerate(generated_images):
+            img_name = Path(img_path).name
+            image_section += f"![配图{i+1}]({img_name})\n\n"
 
-    # 保存输出文件
-    output_file = OUTPUT_DIR / f"paper-explanation-{timestamp}.md"
-    with open(output_file, "w", encoding="utf-8") as f:
+    final_output = explanation + image_section + metadata
+
+    # 保存 Markdown 文件
+    md_file = OUTPUT_DIR / f"paper-explanation-{timestamp}.md"
+    with open(md_file, "w", encoding="utf-8") as f:
         f.write(final_output)
+    print(f"[SUCCESS] Markdown saved to: {md_file}")
 
-    print(f"[SUCCESS] Output saved to: {output_file}")
+    # 转换为 HTML
+    html_file = OUTPUT_DIR / f"paper-explanation-{timestamp}.html"
+    convert_md_to_html(final_output, html_file, "论文解读")
+
+    # 转换为 PDF
+    pdf_file = OUTPUT_DIR / f"paper-explanation-{timestamp}.pdf"
+    convert_html_to_pdf(html_file, pdf_file)
+
     print(f"[INFO] Processing time: {processing_time:.1f}s")
-    print(f"[INFO] Output length: {len(final_output)} characters")
+    print(f"[INFO] Output files:")
+    print(f"       - Markdown: {md_file}")
+    print(f"       - HTML: {html_file}")
+    print(f"       - PDF: {pdf_file}")
 
-    return output_file
+    return md_file
 
 
 async def call_api_direct(prompt: str) -> str:
@@ -386,6 +610,7 @@ if __name__ == "__main__":
     print("=" * 60)
     print("       Paper Reader - Cloud Execution Script")
     print("       Using Claude Agent SDK + 通义万相")
+    print("       Output: Markdown + HTML + PDF")
     print("=" * 60)
     print()
 
