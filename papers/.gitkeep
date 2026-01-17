@@ -1,0 +1,6 @@
+# Place your PDF papers here
+# Supported format: *.pdf
+#
+# When a new PDF is pushed to this directory,
+# the GitHub Actions workflow will automatically
+# process it and generate an explanation.
